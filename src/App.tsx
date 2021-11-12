@@ -1,14 +1,13 @@
 import React from "react";
-import "./App.css";
-import ImportCSV from "./components/ImportCSV";
+
+import LogTable from "./components/LogTable";
+import "antd/dist/antd.css";
 
 function App() {
   return (
-
-      <div>
-        <ImportCSV />
-      </div>
-
+    <div>
+      <LogTable fileName="11.csv" />
+    </div>
   );
 }
 
