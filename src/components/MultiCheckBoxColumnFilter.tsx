@@ -45,7 +45,7 @@ function MultiCheckBoxColumnFilter({
   return (
     <div className="ml-10">
       <div className="text-lg mb-2">Column Filters - {id}</div>
-      <div className="h-80 overflow-auto">
+      <div className="h-72 overflow-auto">
         {Object.entries(options).map(([option, count], i) => {
           // if (option === "undefined") return;
           return (

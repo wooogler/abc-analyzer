@@ -28,7 +28,8 @@ const getlogRows = (logRaws: string[][]) =>
     const _id = log[0];
     const datumType = log[1];
     const timestamp = log[5];
-    const value = log[8].replaceAll('""', '"').replaceAll(': ", ', ': "", ');
+    console.log(_id);
+    const value = log[8]?.replaceAll('""', '"').replaceAll(': ", ', ': "", ');
     let parsedValue = {};
     try {
       parsedValue = JSON.parse(value);
@@ -39,18 +40,30 @@ const getlogRows = (logRaws: string[][]) =>
     return { _id, datumType, timestamp, ...flattenedValue };
   });
 
-const getColumns = (data: { [index: string]: string }[]) =>
-  data
-    .reduce<string[]>((acc, row) => {
-      const keys = Object.keys(row);
-      return _.union(acc, keys);
-    }, [])
-    .map((key) => ({
+const getColumns = (data: { [index: string]: string }[]) => {
+  const columnList = data.reduce<string[]>((acc, row) => {
+    const keys = Object.keys(row);
+    return _.union(acc, keys);
+  }, []);
+  let newColumnList = columnList.filter((item) => item !== "timestamp");
+  newColumnList.unshift("timestamp");
+
+  return newColumnList.map((key) => {
+    if (key === "timestamp") {
+      return {
+        Header: key,
+        accessor: key,
+        sticky: "left",
+      };
+    }
+    return {
       Header: key,
       accessor: key,
       Filter: MultiCheckBoxColumnFilter,
       filter: "multiSelect",
-    }));
+    };
+  });
+};
 
 function useLogRows(fileName: string) {
   const [logData, setLogData] = useState<{ [index: string]: string }[]>([]);
@@ -71,7 +84,6 @@ function useLogRows(fileName: string) {
       }, []);
       const res = logColumns.reduce((ac, a) => ({ ...ac, [a]: "empty" }), {});
       const logs = logRows.map((item) => Object.assign({}, res, item));
-      console.log(logs);
       setLogData(logs);
     }
     getLogs();

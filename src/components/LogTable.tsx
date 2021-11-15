@@ -2,6 +2,7 @@ import React, {
   createRef,
   ReactElement,
   useCallback,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -17,70 +18,99 @@ import styled from "styled-components";
 import useLogRows from "../hooks/useLogRows";
 import scrollbarWidth from "../utils/scrollbarWidth";
 import { FixedSizeList as List } from "react-window";
+import { useSticky } from "react-table-sticky";
 
 interface Props {
   fileName: string;
+  sec: number;
+  sync: number;
+  setSync: React.Dispatch<React.SetStateAction<number>>;
+  setSelectedTimestamp: React.Dispatch<React.SetStateAction<number>>;
+  playerRef: any;
 }
 
 const listRef = createRef<any>();
 
 const Styles = styled.div`
-  padding: 1rem;
-
   .table {
-    display: inline-block;
-    border-spacing: 0;
-    border: 1px solid black;
+    border: 1px solid #ddd;
 
     .tr {
       :last-child {
         .td {
           border-bottom: 0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
         }
       }
     }
 
     .th,
     .td {
-      margin: 0;
-      padding: 0.5rem;
-      border-bottom: 1px solid black;
-      border-right: 1px solid black;
+      padding: 5px;
+      border-bottom: 1px solid #ddd;
+      border-right: 1px solid #ddd;
+      background-color: #fff;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
 
       :last-child {
-        border-right: 1px solid black;
+        border-right: 0;
       }
-      .resizer {
-        display: inline-block;
-        width: 10px;
-        height: 100%;
-        position: absolute;
-        right: 0;
-        top: 0;
-        transform: translateX(50%);
-        z-index: 1;
-        ${"" /* prevents from scrolling while dragging on touch devices */}
-        touch-action:none;
-        &:hover {
-          background: skyblue;
-        }
+    }
 
-        &.isResizing {
-          background: red;
-        }
+    &.sticky {
+      overflow: scroll;
+      .header,
+      .footer {
+        position: sticky;
+        z-index: 1;
+        width: fit-content;
+      }
+
+      .header {
+        top: 0;
+        box-shadow: 0px 3px 3px #ccc;
+      }
+
+      .footer {
+        bottom: 0;
+        box-shadow: 0px -3px 3px #ccc;
+      }
+
+      .body {
+        position: relative;
+        z-index: 0;
+      }
+
+      [data-sticky-td] {
+        position: sticky;
+      }
+
+      [data-sticky-last-left-td] {
+        box-shadow: 2px 0px 3px #ccc;
+      }
+
+      [data-sticky-first-right-td] {
+        box-shadow: -2px 0px 3px #ccc;
       }
     }
   }
 `;
 
-function LogTable({ fileName }: Props): ReactElement {
+function LogTable({
+  fileName,
+  sec,
+  sync,
+  setSync,
+  setSelectedTimestamp,
+  playerRef,
+}: Props): ReactElement {
   const { logData, logColumns } = useLogRows(fileName);
+  useEffect(() => {
+    const firstTimestamp = logData
+      .map((log) => parseInt(log.timestamp))
+      .sort()[0];
+    setSync(firstTimestamp);
+  }, [logData, setSync]);
+
   const filterTypes = useMemo(
     () => ({
       multiSelect: (rows: Row<object>[], id: any, filterValues: any) => {
@@ -90,7 +120,7 @@ function LogTable({ fileName }: Props): ReactElement {
     }),
     []
   );
-  const defaultColumn = React.useMemo(
+  const defaultColumn = useMemo(
     () => ({
       minWidth: 30,
       width: 150,
@@ -98,7 +128,7 @@ function LogTable({ fileName }: Props): ReactElement {
     }),
     []
   );
-  const scrollBarSize = React.useMemo(() => scrollbarWidth(), []);
+  const scrollBarSize = useMemo(() => scrollbarWidth(), []);
 
   const {
     getTableProps,
@@ -126,19 +156,38 @@ function LogTable({ fileName }: Props): ReactElement {
     useBlockLayout,
     useResizeColumns,
     useFilters,
-    useSortBy
+    useSortBy,
+    useSticky
   );
 
-  const RenderRow = React.useCallback(
+  const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
+
+  const onClickRow = useCallback(
+    (index: number, timestamp: number) => {
+      setSelectedRowIndex(index);
+      setSelectedTimestamp(timestamp);
+      // console.log((sec + timestamp - sync) / 1000);
+      playerRef.current.seekTo((sec + timestamp - sync) / 1000);
+    },
+    [setSelectedTimestamp, sync, sec, playerRef]
+  );
+
+  const RenderRow = useCallback(
     ({ index, style }) => {
       const row = rows[index];
+      const timestamp = parseInt(row.values.timestamp);
       prepareRow(row);
       return (
         <div
           {...row.getRowProps({
             style,
           })}
-          className="tr"
+          className={`tr ${selectedRowIndex === index && "bg-yellow-100 "}${
+            sec + sync >= timestamp && "bg-red-100 "
+          }cursor-pointer`}
+          onClick={() => {
+            onClickRow(index, timestamp);
+          }}
         >
           {row.cells.map((cell) => {
             return (
@@ -150,7 +199,7 @@ function LogTable({ fileName }: Props): ReactElement {
         </div>
       );
     },
-    [prepareRow, rows]
+    [rows, prepareRow, selectedRowIndex, sec, sync, onClickRow]
   );
 
   const [selectedCol, setSelectedCol] = useState("");
@@ -162,8 +211,15 @@ function LogTable({ fileName }: Props): ReactElement {
 
   return (
     <Styles className="flex flex-col">
-      <div {...getTableProps()} className="table w-2/3 overflow-auto">
-        <div>
+      <div>
+        {sec + sync}, {sync}
+      </div>
+      <div
+        {...getTableProps()}
+        className="table sticky overflow-auto"
+        style={{ width: 500, height: 500 }}
+      >
+        <div className="header">
           {headerGroups.map((headerGroup) => (
             <div {...headerGroup.getHeaderGroupProps()} className="tr">
               {headerGroup.headers.map((column) => (
@@ -187,7 +243,7 @@ function LogTable({ fileName }: Props): ReactElement {
           ))}
         </div>
 
-        <div {...getTableBodyProps()}>
+        <div {...getTableBodyProps()} className="body">
           <List
             height={500}
             itemCount={rows.length}
@@ -202,7 +258,7 @@ function LogTable({ fileName }: Props): ReactElement {
       <div className="flex">
         <div>
           <div className="text-lg mb-2">Show Columns</div>
-          <div className="h-80 w-48 overflow-auto">
+          <div className="h-72 w-48 overflow-auto">
             {allColumns.map((column) => (
               <div key={column.id}>
                 <label>
