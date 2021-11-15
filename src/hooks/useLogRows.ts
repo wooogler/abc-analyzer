@@ -66,7 +66,7 @@ function useLogRows(fileName: string) {
       }, []);
       const res = logColumns.reduce((ac, a) => ({ ...ac, [a]: "empty" }), {});
       const logs = logRows.map((item) => Object.assign({}, res, item));
-      setLogData(logRows);
+      setLogData(logs);
     }
     getLogs();
   }, [fileName]);

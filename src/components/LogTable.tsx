@@ -31,32 +31,29 @@ function LogTable({
     }[]
   >();
   const [showColumnIndex, setShowColumnIndex] = useState<boolean[]>([]);
-  const originalCountCol = originalLogColumns.map((col) => ({
-    col,
-    count: Object.entries(_.countBy(logData?.map((item) => item[col]))),
-  }));
-  const countCol = originalLogColumns.map((col) => ({
-    col,
-    count: Object.entries(_.countBy(logState?.map((item) => item[col]))),
-  }));
+  const [showRowIndex, setShowRowIndex] = useState<boolean[]>([]);
 
   useEffect(() => {
+    setShowColumnIndex(new Array(originalLogColumns.length).fill(true));
+    setShowRowIndex(new Array(logData.length).fill(true));
+  }, [logData.length, originalLogColumns.length]);
+
+  useEffect(() => {
+    const showColumns = originalLogColumns.filter((_, i) => showColumnIndex[i]);
     setLogState(
       logData
+        .map((item) => _.pick(item, showColumns))
+        .filter((_, i) => showRowIndex[i])
         .sort((a, b) => parseInt(a.timestamp) - parseInt(b.timestamp))
-        .map((item) => Object.assign(item, { visible: true }))
     );
-    setShowColumnIndex(new Array(originalLogColumns.length).fill(true));
+  }, [logData, originalLogColumns, showColumnIndex, showRowIndex]);
+
+  useEffect(() => {
     const firstTimestamp = logData
       .map((log) => parseInt(log.timestamp))
       .sort()[0];
     setSync(firstTimestamp);
-  }, [logData, originalLogColumns.length, setSync]);
-
-  useEffect(() => {
-    const showColumns = originalLogColumns.filter((_, i) => showColumnIndex[i]);
-    setLogState(logData.map((item) => _.pick(item, showColumns)));
-  }, [logData, originalLogColumns, showColumnIndex]);
+  }, [logData, setSync]);
 
   const [rowId, setRowId] = useState("");
 
@@ -64,9 +61,8 @@ function LogTable({
     (row: { [index: string]: string }) => {
       setRowId(row?._id);
       setSelectedTimestamp(parseInt(row?.timestamp));
-      console.log(logState);
     },
-    [logState, setSelectedTimestamp]
+    [setSelectedTimestamp]
   );
 
   const [col, setCol] = useState("");
@@ -74,26 +70,48 @@ function LogTable({
     []
   );
 
-  const onClickCol = useCallback(
-    (col: string) => {
-      setCol(col);
-      const selectedCount = countCol.find((item) => item.col === col)?.count;
-      const originalSelectedCount = originalCountCol.find(
-        (item) => item.col === col
-      )?.count;
-      setCount(
-        originalSelectedCount?.map((item, oi, oc) => {
-          if (selectedCount?.map((val) => val[0]).includes(item[0])) {
-            if (oc[oi][1] === item[1]) return [item[0], item[1], true];
-            else return [item[0], item[1], false];
-          } else {
-            return [item[0], 0, false];
+  useEffect(() => {
+    const originalCountCol = originalLogColumns.map((col) => ({
+      col,
+      count: Object.entries(_.countBy(logData?.map((item) => item[col]))),
+    }));
+    const countCol = originalLogColumns.map((col) => ({
+      col,
+      count: Object.entries(_.countBy(logState?.map((item) => item[col]))),
+    }));
+    const selectedCount = countCol.find((item) => item.col === col)?.count;
+    const originalSelectedCount = originalCountCol.find(
+      (item) => item.col === col
+    )?.count;
+
+    setCount(
+      originalSelectedCount?.map((item) => {
+        if (selectedCount?.map((val) => val[0]).includes(item[0])) {
+          const lookup = selectedCount.find((val) => val[0] === item[0]);
+          if (lookup === undefined) {
+            throw new Error("no lookup");
           }
-        })
-      );
-    },
-    [countCol, originalCountCol]
-  );
+          const count = lookup[1];
+          if (count === item[1]) {
+            return [item[0], count, true];
+          }
+          return [item[0], count, false];
+        } else {
+          return [item[0], 0, false];
+        }
+        // if (selectedCount?.map((val) => val[0]).includes(item[0])) {
+        //   if (oc[oi][1] === item[1]) return [item[0], item[1], true];
+        //   else return [item[0], oc[oi][1], false];
+        // } else {
+        //   return [item[0], 0, false];
+        // }
+      })
+    );
+  }, [col, logData, logState, originalLogColumns]);
+
+  const onClickCol = useCallback((col: string) => {
+    setCol(col);
+  }, []);
 
   const CellRenderer: GridCellRenderer = ({
     columnIndex,
@@ -107,7 +125,6 @@ function LogTable({
       );
       const column = logColumns[columnIndex];
       const row = logState[rowIndex];
-
       if (rowIndex === 0) {
         return (
           <CustomCol
@@ -130,7 +147,7 @@ function LogTable({
           selected={row?._id === rowId}
           onClick={() => onClickRow(row)}
         >
-          {row && row[column]}
+          {row && row[column].toString()}
         </CustomRow>
       );
     }
@@ -147,10 +164,28 @@ function LogTable({
   const onClickFilter = useCallback(
     (value: string, checked: boolean) => {
       if (checked) {
-        setLogState((prev) => prev?.filter((item) => item[col] !== value));
+        setShowRowIndex((prev) =>
+          prev.map((item, i) => {
+            if (item === true) {
+              return logData[i][col] !== value;
+            } else {
+              return item;
+            }
+          })
+        );
+      } else {
+        setShowRowIndex((prev) =>
+          prev.map((item, i) => {
+            if (item === false) {
+              return logData[i][col] === value;
+            } else {
+              return item;
+            }
+          })
+        );
       }
     },
-    [col]
+    [col, logData]
   );
 
   return (
@@ -174,7 +209,7 @@ function LogTable({
                 borderRight: "2px solid #aaa",
                 fontWeight: "bold",
               }}
-              rowCount={logData.length}
+              rowCount={showRowIndex.filter(Boolean).length}
               columnCount={showColumnIndex.filter(Boolean).length}
               columnWidth={150}
             />
@@ -190,6 +225,7 @@ function LogTable({
                 <Checkbox
                   onChange={() => onChangeColumns(index)}
                   checked={showColumnIndex[index]}
+                  key={index}
                 >
                   {column}
                 </Checkbox>
@@ -207,6 +243,7 @@ function LogTable({
                     checked={item[2]}
                     indeterminate={item[1] !== 0 && !item[2]}
                     onClick={() => onClickFilter(item[0], item[2])}
+                    key={item[0]}
                   >
                     {item[0]} ({item[1]})
                   </Checkbox>
