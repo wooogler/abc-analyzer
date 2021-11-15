@@ -14,7 +14,6 @@ function App() {
   return (
     <div className="flex">
       <div className="w-2/3 h-screen">
-        <div>{sec}</div>
         <LogTable
           fileName="20.4.csv"
           sec={sec}
