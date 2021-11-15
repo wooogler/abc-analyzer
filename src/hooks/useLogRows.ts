@@ -1,7 +1,7 @@
 import _ from "lodash";
 import Papa from "papaparse";
 import { useEffect, useMemo, useState } from "react";
-import MultiCheckBoxColumnFilter from "../components/MultiCheckBoxColumnFilter";
+import { columnStyle } from "../utils/columnStyle";
 
 function flattenObject(ob: any) {
   var toReturn: any = {};
@@ -28,7 +28,6 @@ const getlogRows = (logRaws: string[][]) =>
     const _id = log[0];
     const datumType = log[1];
     const timestamp = log[5];
-    console.log(_id);
     const value = log[8]?.replaceAll('""', '"').replaceAll(': ", ', ': "", ');
     let parsedValue = {};
     try {
@@ -37,7 +36,7 @@ const getlogRows = (logRaws: string[][]) =>
       console.log(index, value);
     }
     const flattenedValue = flattenObject(parsedValue);
-    return { _id, datumType, timestamp, ...flattenedValue };
+    return { id: index, timestamp, _id, datumType, ...flattenedValue };
   });
 
 const getColumns = (data: { [index: string]: string }[]) => {
@@ -49,18 +48,10 @@ const getColumns = (data: { [index: string]: string }[]) => {
   newColumnList.unshift("timestamp");
 
   return newColumnList.map((key) => {
-    if (key === "timestamp") {
-      return {
-        Header: key,
-        accessor: key,
-        sticky: "left",
-      };
-    }
     return {
-      Header: key,
-      accessor: key,
-      Filter: MultiCheckBoxColumnFilter,
-      filter: "multiSelect",
+      title: key,
+      field: key,
+      ...columnStyle("100px"),
     };
   });
 };
@@ -84,7 +75,7 @@ function useLogRows(fileName: string) {
       }, []);
       const res = logColumns.reduce((ac, a) => ({ ...ac, [a]: "empty" }), {});
       const logs = logRows.map((item) => Object.assign({}, res, item));
-      setLogData(logs);
+      setLogData(logRows);
     }
     getLogs();
   }, [fileName]);
