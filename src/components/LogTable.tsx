@@ -11,6 +11,8 @@ interface Props {
   fileName: string;
   sec: number;
   sync: number;
+  start: number;
+  selectedTimestamp: number;
   setSync: React.Dispatch<React.SetStateAction<number>>;
   setSelectedTimestamp: React.Dispatch<React.SetStateAction<number>>;
   playerRef: any;
@@ -20,8 +22,10 @@ function LogTable({
   fileName,
   sec,
   sync,
+  start,
   setSync,
   setSelectedTimestamp,
+  selectedTimestamp,
   playerRef,
 }: Props): ReactElement {
   const { logData, logColumns: originalLogColumns } = useLogRows(fileName);
@@ -60,9 +64,11 @@ function LogTable({
   const onClickRow = useCallback(
     (row: { [index: string]: string }) => {
       setRowId(row?._id);
-      setSelectedTimestamp(parseInt(row?.timestamp));
+      const timestamp = parseInt(row?.timestamp);
+      setSelectedTimestamp(timestamp);
+      playerRef.current.seekTo((start + timestamp - sync) / 1000, "seconds");
     },
-    [setSelectedTimestamp]
+    [playerRef, setSelectedTimestamp, start, sync]
   );
 
   const [col, setCol] = useState("");
@@ -99,12 +105,6 @@ function LogTable({
         } else {
           return [item[0], 0, false];
         }
-        // if (selectedCount?.map((val) => val[0]).includes(item[0])) {
-        //   if (oc[oi][1] === item[1]) return [item[0], item[1], true];
-        //   else return [item[0], oc[oi][1], false];
-        // } else {
-        //   return [item[0], 0, false];
-        // }
       })
     );
   }, [col, logData, logState, originalLogColumns]);
@@ -143,7 +143,7 @@ function LogTable({
           key={key}
           style={style}
           className="cell"
-          passed={sec + sync >= parseInt(row?.timestamp)}
+          passed={sec + sync - start >= parseInt(row?.timestamp)}
           selected={row?._id === rowId}
           onClick={() => onClickRow(row)}
         >
@@ -190,7 +190,10 @@ function LogTable({
 
   return (
     <div className="w-full h-full">
-      <div>{sync}</div>
+      <div>
+        sec:{sec}, sync: {sync}, timestamp: {selectedTimestamp}, start: {start},
+        sec+sync: {sec + sync}
+      </div>
       <Styles>
         <AutoSizer>
           {({ height, width }) => (

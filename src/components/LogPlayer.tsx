@@ -1,11 +1,12 @@
 import { Button } from "antd";
-import React, { ReactElement, useState } from "react";
+import React, { ReactElement, useCallback, useState } from "react";
 import ReactPlayer from "react-player";
 
 interface Props {
   url: string;
   setSec: React.Dispatch<React.SetStateAction<number>>;
   setSync: React.Dispatch<React.SetStateAction<number>>;
+  setStart: React.Dispatch<React.SetStateAction<number>>;
   selectedTimestamp: number;
   playerRef: React.LegacyRef<ReactPlayer> | undefined;
 }
@@ -21,6 +22,7 @@ function LogPlayer({
   url,
   setSec,
   setSync,
+  setStart,
   selectedTimestamp,
   playerRef,
 }: Props): ReactElement {
@@ -29,6 +31,10 @@ function LogPlayer({
     setSec(Math.floor(e.playedSeconds * 1000));
     setPlayedSec(Math.floor(e.playedSeconds * 1000));
   };
+  const onClickSync = useCallback(() => {
+    setSync(selectedTimestamp);
+    setStart(playedSec);
+  }, [playedSec, selectedTimestamp, setStart, setSync]);
   return (
     <div className="h-full w-full">
       <ReactPlayer
@@ -41,7 +47,7 @@ function LogPlayer({
         ref={playerRef}
       />
       {/* <div>{playedSec}</div> */}
-      <Button onClick={() => setSync(selectedTimestamp)}>Sync</Button>
+      <Button onClick={onClickSync}>Sync</Button>
     </div>
   );
 }
