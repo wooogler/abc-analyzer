@@ -6,6 +6,7 @@ import styled from "styled-components";
 import _ from "lodash";
 import Item from "antd/lib/list/Item";
 import { Checkbox } from "antd";
+import { CheckboxChangeEvent } from "antd/lib/checkbox";
 
 interface Props {
   fileName: string;
@@ -52,12 +53,12 @@ function LogTable({
     );
   }, [logData, originalLogColumns, showColumnIndex, showRowIndex]);
 
-  useEffect(() => {
-    const firstTimestamp = logData
-      .map((log) => parseInt(log.timestamp))
-      .sort()[0];
-    setSync(firstTimestamp);
-  }, [logData, setSync]);
+  // useEffect(() => {
+  //   const firstTimestamp = logData
+  //     .map((log) => parseInt(log.timestamp))
+  //     .sort()[0];
+  //   setSync(firstTimestamp);
+  // }, [logData, setSync]);
 
   const [rowId, setRowId] = useState("");
 
@@ -72,9 +73,9 @@ function LogTable({
   );
 
   const [col, setCol] = useState("");
-  const [count, setCount] = useState<[string, number, boolean][] | undefined>(
-    []
-  );
+  const [count, setCount] = useState<
+    [string, number, boolean, number][] | undefined
+  >([]);
 
   useEffect(() => {
     const originalCountCol = originalLogColumns.map((col) => ({
@@ -99,11 +100,11 @@ function LogTable({
           }
           const count = lookup[1];
           if (count === item[1]) {
-            return [item[0], count, true];
+            return [item[0], count, true, item[1]];
           }
-          return [item[0], count, false];
+          return [item[0], count, false, item[1]];
         } else {
-          return [item[0], 0, false];
+          return [item[0], 0, false, item[1]];
         }
       })
     );
@@ -147,7 +148,7 @@ function LogTable({
           selected={row?._id === rowId}
           onClick={() => onClickRow(row)}
         >
-          {row && row[column].toString()}
+          {row && row[column] && row[column].toString()}
         </CustomRow>
       );
     }
@@ -188,12 +189,28 @@ function LogTable({
     [col, logData]
   );
 
+  const onSelectAllColumns = useCallback((e: CheckboxChangeEvent) => {
+    if (!e.target.checked || e.target.indeterminate) {
+      setShowColumnIndex((prev) => prev.map(() => false));
+    } else {
+      setShowColumnIndex((prev) => prev.map(() => true));
+    }
+  }, []);
+
+  const onSelectAllValues = useCallback((e: CheckboxChangeEvent) => {
+    if (!e.target.checked || e.target.indeterminate) {
+      setShowRowIndex((prev) => prev.map(() => false));
+    } else {
+      setShowRowIndex((prev) => prev.map(() => true));
+    }
+  }, []);
+
   return (
-    <div className="w-full h-full">
-      <div>
+    <div className="w-full h-screen">
+      {/* <div>
         sec:{sec}, sync: {sync}, timestamp: {selectedTimestamp}, start: {start},
         sec+sync: {sec + sync}
-      </div>
+      </div> */}
       <Styles>
         <AutoSizer>
           {({ height, width }) => (
@@ -220,40 +237,70 @@ function LogTable({
         </AutoSizer>
       </Styles>
       <div className="flex">
-        <div className="flex flex-col">
-          {originalLogColumns.map((column, index) => {
-            if (column === "_id") return <div></div>;
-            return (
-              <div>
-                <Checkbox
-                  onChange={() => onChangeColumns(index)}
-                  checked={showColumnIndex[index]}
-                  key={index}
-                >
-                  {column}
-                </Checkbox>
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex flex-col">
-          {count
-            ?.sort((a, b) => b[1] - a[1])
-            .map((item) => {
+        <div className="flex flex-col ml-4">
+          <div className="text-lg font-bold">Show Columns</div>
+          <Checkbox
+            checked={showColumnIndex.every((item) => item === true)}
+            indeterminate={
+              !showColumnIndex.every((item) => item === true) &&
+              showColumnIndex.some((item) => item === true)
+            }
+            onChange={onSelectAllColumns}
+          >
+            Select All
+          </Checkbox>
+          <div className="h-1/5 overflow-auto">
+            {originalLogColumns.map((column, index) => {
+              // if (column === "_id") return <div></div>;
               return (
                 <div>
                   <Checkbox
-                    checked={item[2]}
-                    indeterminate={item[1] !== 0 && !item[2]}
-                    onClick={() => onClickFilter(item[0], item[2])}
-                    key={item[0]}
+                    onChange={() => onChangeColumns(index)}
+                    checked={showColumnIndex[index]}
+                    key={index}
                   >
-                    {item[0]} ({item[1]})
+                    {column}
                   </Checkbox>
                 </div>
               );
             })}
+          </div>
         </div>
+        {col !== "" && (
+          <div className="flex flex-col ml-4">
+            <div className="text-lg font-bold">Column Filter - {col}</div>
+            <Checkbox
+              checked={count
+                ?.map((item) => item[2])
+                .every((item) => item === true)}
+              indeterminate={
+                !count?.map((item) => item[2]).every((item) => item === true) &&
+                count?.map((item) => item[2]).some((item) => item === true)
+              }
+              onChange={onSelectAllValues}
+            >
+              Select All
+            </Checkbox>
+            <div className="h-1/5 overflow-auto">
+              {count
+                ?.sort((a, b) => b[3] - a[3])
+                .map((item) => {
+                  return (
+                    <div>
+                      <Checkbox
+                        checked={item[2]}
+                        indeterminate={item[1] !== 0 && !item[2]}
+                        onClick={() => onClickFilter(item[0], item[2])}
+                        key={item[0]}
+                      >
+                        {item[0]} ({item[1]}/{item[3]})
+                      </Checkbox>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -262,6 +309,7 @@ function LogTable({
 const Styles = styled.div`
   width: 100%;
   height: 60%;
+  margin: 1rem;
   .cell {
     white-space: nowrap;
     overflow: hidden;

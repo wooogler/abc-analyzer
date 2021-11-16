@@ -36,18 +36,18 @@ function LogPlayer({
     setStart(playedSec);
   }, [playedSec, selectedTimestamp, setStart, setSync]);
   return (
-    <div className="h-full w-full">
+    <div className="h-screen w-full p-4">
       <ReactPlayer
         url={url}
         controls={true}
         width="100%"
-        height="90%"
+        height="100%"
         onProgress={onProgress}
         progressInterval={10}
         ref={playerRef}
       />
       {/* <div>{playedSec}</div> */}
-      <Button onClick={onClickSync}>Sync</Button>
+      {/* <Button onClick={onClickSync}>Sync</Button> */}
     </div>
   );
 }
