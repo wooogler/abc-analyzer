@@ -5,6 +5,8 @@ import {
   MultiGrid,
   List,
 } from "react-virtualized";
+import dayjs from "dayjs";
+import localizedFormat from "dayjs/plugin/localizedFormat";
 import useLogRows from "../hooks/useLogRows";
 import styled from "styled-components";
 import _ from "lodash";
@@ -28,6 +30,8 @@ interface ValueCount {
   checked: boolean;
   total: number;
 }
+
+dayjs.extend(localizedFormat);
 
 function LogTable({
   fileName,
@@ -160,7 +164,12 @@ function LogTable({
           selected={row?._id === rowId}
           onClick={() => onClickRow(row)}
         >
-          {row && row[column] && row[column].toString()}
+          {/* {row && row[column] && columnIndex === 0
+            ? dayjs(parseInt(row[column])).format("L LT")
+            : row[column].toString()} */}
+          {columnIndex !== 0
+            ? row && row[column] && row[column].toString()
+            : row && dayjs(parseInt(row[column])).format("YY/MM/DD HH:mm:ss")}
         </CustomRow>
       );
     }
