@@ -1,11 +1,14 @@
 import React, { ReactElement, useCallback, useEffect, useState } from "react";
-import { AutoSizer, GridCellRenderer, MultiGrid } from "react-virtualized";
+import {
+  AutoSizer,
+  GridCellRenderer,
+  MultiGrid,
+  List,
+} from "react-virtualized";
 import useLogRows from "../hooks/useLogRows";
-import Draggable from "react-draggable";
 import styled from "styled-components";
 import _ from "lodash";
-import Item from "antd/lib/list/Item";
-import { Checkbox } from "antd";
+import { Checkbox, Input } from "antd";
 import { CheckboxChangeEvent } from "antd/lib/checkbox";
 
 interface Props {
@@ -17,6 +20,13 @@ interface Props {
   setSync: React.Dispatch<React.SetStateAction<number>>;
   setSelectedTimestamp: React.Dispatch<React.SetStateAction<number>>;
   playerRef: any;
+}
+
+interface ValueCount {
+  value: string;
+  count: number;
+  checked: boolean;
+  total: number;
 }
 
 function LogTable({
@@ -37,12 +47,13 @@ function LogTable({
   >();
   const [showColumnIndex, setShowColumnIndex] = useState<boolean[]>([]);
   const [showRowIndex, setShowRowIndex] = useState<boolean[]>([]);
-
   useEffect(() => {
-    setShowColumnIndex(new Array(originalLogColumns.length).fill(true));
+    const initShowColumnIndex = new Array(originalLogColumns.length).fill(true);
+    // .map((_, index) => (index === 1 ? false : true));
+    console.log(initShowColumnIndex);
+    setShowColumnIndex(initShowColumnIndex);
     setShowRowIndex(new Array(logData.length).fill(true));
   }, [logData.length, originalLogColumns.length]);
-
   useEffect(() => {
     const showColumns = originalLogColumns.filter((_, i) => showColumnIndex[i]);
     setLogState(
@@ -52,13 +63,6 @@ function LogTable({
         .sort((a, b) => parseInt(a.timestamp) - parseInt(b.timestamp))
     );
   }, [logData, originalLogColumns, showColumnIndex, showRowIndex]);
-
-  // useEffect(() => {
-  //   const firstTimestamp = logData
-  //     .map((log) => parseInt(log.timestamp))
-  //     .sort()[0];
-  //   setSync(firstTimestamp);
-  // }, [logData, setSync]);
 
   const [rowId, setRowId] = useState("");
 
@@ -73,9 +77,7 @@ function LogTable({
   );
 
   const [col, setCol] = useState("");
-  const [count, setCount] = useState<
-    [string, number, boolean, number][] | undefined
-  >([]);
+  const [count, setCount] = useState<ValueCount[] | undefined>([]);
 
   useEffect(() => {
     const originalCountCol = originalLogColumns.map((col) => ({
@@ -100,19 +102,34 @@ function LogTable({
           }
           const count = lookup[1];
           if (count === item[1]) {
-            return [item[0], count, true, item[1]];
+            return {
+              value: item[0],
+              count: count,
+              checked: true,
+              total: item[1],
+            };
           }
-          return [item[0], count, false, item[1]];
+          return {
+            value: item[0],
+            count: count,
+            checked: false,
+            total: item[1],
+          };
         } else {
-          return [item[0], 0, false, item[1]];
+          return { value: item[0], count: 0, checked: false, total: item[1] };
         }
       })
     );
   }, [col, logData, logState, originalLogColumns]);
 
-  const onClickCol = useCallback((col: string) => {
-    setCol(col);
-  }, []);
+  const onClickCol = useCallback(
+    (e: React.MouseEvent<HTMLDivElement, MouseEvent>, col: string) => {
+      if (col === "timestamp") return;
+      e.stopPropagation();
+      setCol(col);
+    },
+    []
+  );
 
   const CellRenderer: GridCellRenderer = ({
     columnIndex,
@@ -128,17 +145,12 @@ function LogTable({
       const row = logState[rowIndex];
       if (rowIndex === 0) {
         return (
-          <CustomCol
-            key={key}
-            style={style}
-            className="cell"
-            onClick={() => onClickCol(column)}
-            selected={col === column}
-          >
+          <CustomCol key={key} style={style} className="cell">
             {column}
           </CustomCol>
         );
       }
+
       return (
         <CustomRow
           key={key}
@@ -205,6 +217,39 @@ function LogTable({
     }
   }, []);
 
+  const [valueList, setValueList] = useState<ValueCount[] | undefined>([]);
+  const [columnList, setColumnList] = useState<string[]>([]);
+
+  useEffect(() => {
+    setValueList(count);
+    setColumnList(originalLogColumns);
+  }, [count, originalLogColumns]);
+
+  const onChangeSearchColumn: React.ChangeEventHandler<HTMLInputElement> =
+    useCallback(
+      (e) => {
+        setColumnList(
+          originalLogColumns.filter((item) =>
+            item.toLowerCase().includes(e.target.value.toLowerCase())
+          )
+        );
+      },
+      [originalLogColumns]
+    );
+
+  const onChangeSearchValue: React.ChangeEventHandler<HTMLInputElement> =
+    useCallback(
+      (e) => {
+        setValueList(
+          count?.filter((item) =>
+            item.value.toLowerCase().includes(e.target.value.toLowerCase())
+          )
+        );
+      },
+      [count]
+    );
+  const showColumnIndexExceptId = showColumnIndex.filter((_, i) => i !== 1);
+
   return (
     <div className="w-full h-screen">
       {/* <div>
@@ -239,28 +284,34 @@ function LogTable({
       <div className="flex">
         <div className="flex flex-col ml-4">
           <div className="text-lg font-bold">Show Columns</div>
+          <Input size="small" onChange={onChangeSearchColumn} />
           <Checkbox
-            checked={showColumnIndex.every((item) => item === true)}
+            checked={showColumnIndexExceptId.every((item) => item === true)}
             indeterminate={
-              !showColumnIndex.every((item) => item === true) &&
-              showColumnIndex.some((item) => item === true)
+              !showColumnIndexExceptId.every((item) => item === true) &&
+              showColumnIndexExceptId.some((item) => item === true)
             }
             onChange={onSelectAllColumns}
+            className="p-1"
           >
             Select All
           </Checkbox>
-          <div className="h-1/5 overflow-auto">
-            {originalLogColumns.map((column, index) => {
-              // if (column === "_id") return <div></div>;
+          <div className="h-60 overflow-auto">
+            {columnList.map((column, index) => {
+              if (column === "_id") return null;
               return (
-                <div>
+                <div
+                  className={`flex p-1 ${
+                    column !== "timestamp" && "cursor-pointer hover:bg-gray-200"
+                  } ${column === col && "bg-blue-200"}`}
+                  onClick={(e) => onClickCol(e, column)}
+                >
                   <Checkbox
                     onChange={() => onChangeColumns(index)}
                     checked={showColumnIndex[index]}
                     key={index}
-                  >
-                    {column}
-                  </Checkbox>
+                  />
+                  <div className="w-36 pl-2">{column}</div>
                 </div>
               );
             })}
@@ -269,31 +320,38 @@ function LogTable({
         {col !== "" && (
           <div className="flex flex-col ml-4">
             <div className="text-lg font-bold">Column Filter - {col}</div>
-            <Checkbox
-              checked={count
-                ?.map((item) => item[2])
-                .every((item) => item === true)}
-              indeterminate={
-                !count?.map((item) => item[2]).every((item) => item === true) &&
-                count?.map((item) => item[2]).some((item) => item === true)
-              }
-              onChange={onSelectAllValues}
-            >
-              Select All
-            </Checkbox>
-            <div className="h-1/5 overflow-auto">
-              {count
-                ?.sort((a, b) => b[3] - a[3])
+            <Input size="small" onChange={onChangeSearchValue} />
+            <div className="p-1">
+              <Checkbox
+                checked={count
+                  ?.map((item) => item.checked)
+                  .every((item) => item === true)}
+                indeterminate={
+                  !count
+                    ?.map((item) => item.checked)
+                    .every((item) => item === true) &&
+                  count
+                    ?.map((item) => item.checked)
+                    .some((item) => item === true)
+                }
+                onChange={onSelectAllValues}
+              >
+                Select All
+              </Checkbox>
+            </div>
+            <div className="h-60 overflow-auto">
+              {valueList
+                ?.sort((a, b) => b.total - a.total)
                 .map((item) => {
                   return (
-                    <div>
+                    <div className="p-1">
                       <Checkbox
-                        checked={item[2]}
-                        indeterminate={item[1] !== 0 && !item[2]}
-                        onClick={() => onClickFilter(item[0], item[2])}
-                        key={item[0]}
+                        checked={item.checked}
+                        indeterminate={item.count !== 0 && !item.checked}
+                        onClick={() => onClickFilter(item.value, item.checked)}
+                        key={item.value}
                       >
-                        {item[0]} ({item[1]}/{item[3]})
+                        {item.value} ({item.count}/{item.total})
                       </Checkbox>
                     </div>
                   );
@@ -334,12 +392,6 @@ const CustomRow = styled.div<{ passed: boolean; selected: boolean }>`
   `}
 `;
 
-const CustomCol = styled.div<{ selected: boolean }>`
-  ${({ selected }) =>
-    selected &&
-    `
-    background: skyblue;
-  `}
-`;
+const CustomCol = styled.div``;
 
 export default LogTable;

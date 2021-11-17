@@ -48,18 +48,9 @@ function useLogRows(fileName: string) {
   const logColumns = useMemo(() => getColumns(logData), [logData]);
   useEffect(() => {
     async function getLogs() {
-      // const response = await fetch("logs/" + fileName);
-      // const reader = response.body?.getReader();
-      // const result = await reader?.read();
-      // const decoder = new TextDecoder("utf-8");
-      // const csv = decoder.decode(result?.value);
-      // const results = Papa.parse<string[]>(csv);
-      // console.log(results);
-      // const logRaws = results.data;
       readRemoteFile<string[]>("http://localhost:3000/logs/" + fileName, {
         worker: true,
         complete: function (results) {
-          console.log(results);
           const logRaws = results.data;
           const logRows = getlogRows(logRaws);
           const logColumns = logRows.reduce<string[]>((acc, row) => {
@@ -75,14 +66,6 @@ function useLogRows(fileName: string) {
         },
         download: true,
       });
-      // const logRows = getlogRows(logRaws);
-      // const logColumns = logRows.reduce<string[]>((acc, row) => {
-      //   const keys = Object.keys(row);
-      //   return _.union(acc, keys);
-      // }, []);
-      // const res = logColumns.reduce((ac, a) => ({ ...ac, [a]: "empty" }), {});
-      // const logs = logRows.map((item) => Object.assign({}, res, item));
-      // setLogData(logs);
     }
     getLogs();
   }, [fileName]);
