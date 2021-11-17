@@ -174,6 +174,15 @@ function LogTable({
       );
     }
   };
+  const [passedIndex, setPassedIndex] = useState(0);
+  useEffect(() => {
+    const rowIndex = logState
+      ? logState.findIndex(
+          (item) => sec + sync - start <= parseInt(item?.timestamp)
+        )
+      : 0;
+    setPassedIndex(rowIndex + 5);
+  }, [logState, sec, start, sync]);
 
   const onChangeColumns = (index: number) => {
     setShowColumnIndex((prev) =>
@@ -286,6 +295,7 @@ function LogTable({
               rowCount={showRowIndex.filter(Boolean).length}
               columnCount={showColumnIndex.filter(Boolean).length}
               columnWidth={150}
+              scrollToRow={passedIndex}
             />
           )}
         </AutoSizer>
