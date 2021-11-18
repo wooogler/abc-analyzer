@@ -48,7 +48,7 @@ function useLogRows(fileName: string) {
   const logColumns = useMemo(() => getColumns(logData), [logData]);
   useEffect(() => {
     async function getLogs() {
-      readRemoteFile<string[]>("http://localhost:3000/logs/" + fileName, {
+      readRemoteFile<string[]>(`http://localhost:3000/logs/${fileName}`, {
         worker: true,
         complete: function (results) {
           const logRaws = results.data;

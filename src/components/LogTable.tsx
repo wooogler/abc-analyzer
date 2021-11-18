@@ -1,10 +1,5 @@
 import React, { ReactElement, useCallback, useEffect, useState } from "react";
-import {
-  AutoSizer,
-  GridCellRenderer,
-  MultiGrid,
-  List,
-} from "react-virtualized";
+import { AutoSizer, GridCellRenderer, MultiGrid } from "react-virtualized";
 import dayjs from "dayjs";
 import localizedFormat from "dayjs/plugin/localizedFormat";
 import useLogRows from "../hooks/useLogRows";
@@ -128,8 +123,9 @@ function LogTable({
 
   const onClickCol = useCallback(
     (e: React.MouseEvent<HTMLDivElement, MouseEvent>, col: string) => {
-      if (col === "timestamp") return;
-      e.stopPropagation();
+      if (col === "timestamp" || col === "_id" || col === "extra_eventTime")
+        return;
+      // e.stopPropagation();
       setCol(col);
     },
     []
@@ -169,7 +165,7 @@ function LogTable({
             : row[column].toString()} */}
           {columnIndex !== 0
             ? row && row[column] && row[column].toString()
-            : row && dayjs(parseInt(row[column])).format("YY/MM/DD HH:mm:ss")}
+            : row && dayjs(parseInt(row[column])).format("MM/DD hh:mm:ss.SSS")}
         </CustomRow>
       );
     }
@@ -184,7 +180,11 @@ function LogTable({
     setPassedIndex(rowIndex + 5);
   }, [logState, sec, start, sync]);
 
-  const onChangeColumns = (index: number) => {
+  const onChangeColumns = (
+    e: React.MouseEvent<HTMLElement, MouseEvent>,
+    index: number
+  ) => {
+    e.stopPropagation();
     setShowColumnIndex((prev) =>
       prev.map((item, i) => {
         return index === i ? !item : item;
@@ -317,7 +317,6 @@ function LogTable({
           </Checkbox>
           <div className="h-60 overflow-auto">
             {columnList.map((column, index) => {
-              if (column === "_id") return null;
               return (
                 <div
                   className={`flex p-1 ${
@@ -326,7 +325,7 @@ function LogTable({
                   onClick={(e) => onClickCol(e, column)}
                 >
                   <Checkbox
-                    onChange={() => onChangeColumns(index)}
+                    onClick={(e) => onChangeColumns(e, index)}
                     checked={showColumnIndex[index]}
                     key={index}
                   />
