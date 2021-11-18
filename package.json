@@ -50,7 +50,8 @@
     "build": "craco build",
     "test": "craco test",
     "eject": "react-scripts eject",
-    "deploy": "craco build & gh-pages -b master -d build"
+    "predeploy": "craco build",
+    "deploy": "gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
@@ -75,5 +76,5 @@
     "postcss": "^7",
     "tailwindcss": "npm:@tailwindcss/postcss7-compat"
   },
-  "homepage": "http://wooogler.github.io/abc-analyzer"
+  "homepage": "http://wooogler.github.io/lv-linker/"
 }
