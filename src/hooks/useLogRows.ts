@@ -48,24 +48,31 @@ function useLogRows(fileName: string) {
   const logColumns = useMemo(() => getColumns(logData), [logData]);
   useEffect(() => {
     async function getLogs() {
-      readRemoteFile<string[]>(`http://localhost:3000/logs/${fileName}`, {
-        worker: true,
-        complete: function (results) {
-          const logRaws = results.data;
-          const logRows = getlogRows(logRaws);
-          const logColumns = logRows.reduce<string[]>((acc, row) => {
-            const keys = Object.keys(row);
-            return _.union(acc, keys);
-          }, []);
-          const res = logColumns.reduce(
-            (ac, a) => ({ ...ac, [a]: "empty" }),
-            {}
-          );
-          const logs = logRows.map((item) => Object.assign({}, res, item));
-          setLogData(logs);
-        },
-        download: true,
-      });
+      readRemoteFile<string[]>(
+        `${
+          process.env.NODE_ENV === "development"
+            ? "http://localhost:3000"
+            : "https://wooogler.github.io/abc-analyzer"
+        }/logs/${fileName}`,
+        {
+          worker: true,
+          complete: function (results) {
+            const logRaws = results.data;
+            const logRows = getlogRows(logRaws);
+            const logColumns = logRows.reduce<string[]>((acc, row) => {
+              const keys = Object.keys(row);
+              return _.union(acc, keys);
+            }, []);
+            const res = logColumns.reduce(
+              (ac, a) => ({ ...ac, [a]: "empty" }),
+              {}
+            );
+            const logs = logRows.map((item) => Object.assign({}, res, item));
+            setLogData(logs);
+          },
+          download: true,
+        }
+      );
     }
     getLogs();
   }, [fileName]);
