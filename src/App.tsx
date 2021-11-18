@@ -6,15 +6,15 @@ import LogPlayer from "./components/LogPlayer";
 import ReactPlayer from "react-player";
 
 function App() {
-  const [sync, setSync] = useState<number>(0);
+  const [sync, setSync] = useState<number>(1629813828796);
   const [sec, setSec] = useState<number>(0);
+  const [start, setStart] = useState<number>(6835);
   const [selectedTimestamp, setSelectedTimestamp] = useState<number>(0);
   const playerRef = useRef() as React.LegacyRef<ReactPlayer> | undefined;
 
   return (
-    <div className="flex">
+    <div className="flex h-screen overflow-hidden">
       <div className="w-2/3 h-screen">
-        <div>{sec}</div>
         <LogTable
           fileName="20.4.csv"
           sec={sec}
@@ -22,6 +22,8 @@ function App() {
           setSelectedTimestamp={setSelectedTimestamp}
           playerRef={playerRef}
           setSync={setSync}
+          selectedTimestamp={selectedTimestamp}
+          start={start}
         />
       </div>
       <div className="w-1/3 h-screen">
@@ -29,6 +31,7 @@ function App() {
           url="videos/P020_10.webm"
           setSec={setSec}
           setSync={setSync}
+          setStart={setStart}
           selectedTimestamp={selectedTimestamp}
           playerRef={playerRef}
         />

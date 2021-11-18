@@ -1,299 +1,415 @@
-import React, {
-  createRef,
-  ReactElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import {
-  Row,
-  useBlockLayout,
-  useFilters,
-  useResizeColumns,
-  useSortBy,
-  useTable,
-} from "react-table";
-import styled from "styled-components";
+import React, { ReactElement, useCallback, useEffect, useState } from "react";
+import { AutoSizer, GridCellRenderer, MultiGrid } from "react-virtualized";
+import dayjs from "dayjs";
+import localizedFormat from "dayjs/plugin/localizedFormat";
 import useLogRows from "../hooks/useLogRows";
-import scrollbarWidth from "../utils/scrollbarWidth";
-import { FixedSizeList as List } from "react-window";
-import { useSticky } from "react-table-sticky";
+import styled from "styled-components";
+import _ from "lodash";
+import { Checkbox, Input } from "antd";
+import { CheckboxChangeEvent } from "antd/lib/checkbox";
 
 interface Props {
   fileName: string;
   sec: number;
   sync: number;
+  start: number;
+  selectedTimestamp: number;
   setSync: React.Dispatch<React.SetStateAction<number>>;
   setSelectedTimestamp: React.Dispatch<React.SetStateAction<number>>;
   playerRef: any;
 }
 
-const listRef = createRef<any>();
+interface ValueCount {
+  value: string;
+  count: number;
+  checked: boolean;
+  total: number;
+}
 
-const Styles = styled.div`
-  .table {
-    border: 1px solid #ddd;
-
-    .tr {
-      :last-child {
-        .td {
-          border-bottom: 0;
-        }
-      }
-    }
-
-    .th,
-    .td {
-      padding: 5px;
-      border-bottom: 1px solid #ddd;
-      border-right: 1px solid #ddd;
-      background-color: #fff;
-      overflow: hidden;
-
-      :last-child {
-        border-right: 0;
-      }
-    }
-
-    &.sticky {
-      overflow: scroll;
-      .header,
-      .footer {
-        position: sticky;
-        z-index: 1;
-        width: fit-content;
-      }
-
-      .header {
-        top: 0;
-        box-shadow: 0px 3px 3px #ccc;
-      }
-
-      .footer {
-        bottom: 0;
-        box-shadow: 0px -3px 3px #ccc;
-      }
-
-      .body {
-        position: relative;
-        z-index: 0;
-      }
-
-      [data-sticky-td] {
-        position: sticky;
-      }
-
-      [data-sticky-last-left-td] {
-        box-shadow: 2px 0px 3px #ccc;
-      }
-
-      [data-sticky-first-right-td] {
-        box-shadow: -2px 0px 3px #ccc;
-      }
-    }
-  }
-`;
+dayjs.extend(localizedFormat);
 
 function LogTable({
   fileName,
   sec,
   sync,
+  start,
   setSync,
   setSelectedTimestamp,
+  selectedTimestamp,
   playerRef,
 }: Props): ReactElement {
-  const { logData, logColumns } = useLogRows(fileName);
-  useEffect(() => {
-    const firstTimestamp = logData
-      .map((log) => parseInt(log.timestamp))
-      .sort()[0];
-    setSync(firstTimestamp);
-  }, [logData, setSync]);
-
-  const filterTypes = useMemo(
-    () => ({
-      multiSelect: (rows: Row<object>[], id: any, filterValues: any) => {
-        if (filterValues.length === 0) return rows;
-        return rows.filter((r) => filterValues.includes(r.values[id]));
-      },
-    }),
-    []
-  );
-  const defaultColumn = useMemo(
-    () => ({
-      minWidth: 30,
-      width: 150,
-      maxWidth: 400,
-    }),
-    []
-  );
-  const scrollBarSize = useMemo(() => scrollbarWidth(), []);
-
-  const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    rows,
-    prepareRow,
-    totalColumnsWidth,
-    allColumns,
-  } = useTable(
+  const { logData, logColumns: originalLogColumns } = useLogRows(fileName);
+  const [logState, setLogState] = useState<
     {
-      data: logData,
-      columns: logColumns,
-      defaultColumn,
-      filterTypes,
-      initialState: {
-        sortBy: [
-          {
-            id: "timestamp",
-            desc: false,
-          },
-        ],
-      },
-    },
-    useBlockLayout,
-    useResizeColumns,
-    useFilters,
-    useSortBy,
-    useSticky
-  );
+      [index: string]: string;
+    }[]
+  >();
+  const [showColumnIndex, setShowColumnIndex] = useState<boolean[]>([]);
+  const [showRowIndex, setShowRowIndex] = useState<boolean[]>([]);
+  useEffect(() => {
+    const initShowColumnIndex = new Array(originalLogColumns.length).fill(true);
+    // .map((_, index) => (index === 1 ? false : true));
+    console.log(initShowColumnIndex);
+    setShowColumnIndex(initShowColumnIndex);
+    setShowRowIndex(new Array(logData.length).fill(true));
+  }, [logData.length, originalLogColumns.length]);
+  useEffect(() => {
+    const showColumns = originalLogColumns.filter((_, i) => showColumnIndex[i]);
+    setLogState(
+      logData
+        .map((item) => _.pick(item, showColumns))
+        .filter((_, i) => showRowIndex[i])
+        .sort((a, b) => parseInt(a.timestamp) - parseInt(b.timestamp))
+    );
+  }, [logData, originalLogColumns, showColumnIndex, showRowIndex]);
 
-  const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
+  const [rowId, setRowId] = useState("");
 
   const onClickRow = useCallback(
-    (index: number, timestamp: number) => {
-      setSelectedRowIndex(index);
+    (row: { [index: string]: string }) => {
+      setRowId(row?._id);
+      const timestamp = parseInt(row?.timestamp);
       setSelectedTimestamp(timestamp);
-      // console.log((sec + timestamp - sync) / 1000);
-      playerRef.current.seekTo((sec + timestamp - sync) / 1000);
+      playerRef.current.seekTo((start + timestamp - sync) / 1000, "seconds");
     },
-    [setSelectedTimestamp, sync, sec, playerRef]
+    [playerRef, setSelectedTimestamp, start, sync]
   );
 
-  const RenderRow = useCallback(
-    ({ index, style }) => {
-      const row = rows[index];
-      const timestamp = parseInt(row.values.timestamp);
-      prepareRow(row);
-      return (
-        <div
-          {...row.getRowProps({
-            style,
-          })}
-          className={`tr ${selectedRowIndex === index && "bg-yellow-100 "}${
-            sec + sync >= timestamp && "bg-red-100 "
-          }cursor-pointer`}
-          onClick={() => {
-            onClickRow(index, timestamp);
-          }}
-        >
-          {row.cells.map((cell) => {
-            return (
-              <div {...cell.getCellProps()} className="td">
-                {cell.render("Cell")}
-              </div>
-            );
-          })}
-        </div>
+  const [col, setCol] = useState("");
+  const [count, setCount] = useState<ValueCount[] | undefined>([]);
+
+  useEffect(() => {
+    const originalCountCol = originalLogColumns.map((col) => ({
+      col,
+      count: Object.entries(_.countBy(logData?.map((item) => item[col]))),
+    }));
+    const countCol = originalLogColumns.map((col) => ({
+      col,
+      count: Object.entries(_.countBy(logState?.map((item) => item[col]))),
+    }));
+    const selectedCount = countCol.find((item) => item.col === col)?.count;
+    const originalSelectedCount = originalCountCol.find(
+      (item) => item.col === col
+    )?.count;
+
+    setCount(
+      originalSelectedCount?.map((item) => {
+        if (selectedCount?.map((val) => val[0]).includes(item[0])) {
+          const lookup = selectedCount.find((val) => val[0] === item[0]);
+          if (lookup === undefined) {
+            throw new Error("no lookup");
+          }
+          const count = lookup[1];
+          if (count === item[1]) {
+            return {
+              value: item[0],
+              count: count,
+              checked: true,
+              total: item[1],
+            };
+          }
+          return {
+            value: item[0],
+            count: count,
+            checked: false,
+            total: item[1],
+          };
+        } else {
+          return { value: item[0], count: 0, checked: false, total: item[1] };
+        }
+      })
+    );
+  }, [col, logData, logState, originalLogColumns]);
+
+  const onClickCol = useCallback(
+    (e: React.MouseEvent<HTMLDivElement, MouseEvent>, col: string) => {
+      if (col === "timestamp" || col === "_id" || col === "extra_eventTime")
+        return;
+      // e.stopPropagation();
+      setCol(col);
+    },
+    []
+  );
+
+  const CellRenderer: GridCellRenderer = ({
+    columnIndex,
+    key,
+    rowIndex,
+    style,
+  }) => {
+    if (logState) {
+      const logColumns = originalLogColumns.filter(
+        (_, index) => showColumnIndex[index]
       );
+      const column = logColumns[columnIndex];
+      const row = logState[rowIndex];
+      if (rowIndex === 0) {
+        return (
+          <CustomCol key={key} style={style} className="cell">
+            {column}
+          </CustomCol>
+        );
+      }
+
+      return (
+        <CustomRow
+          key={key}
+          style={style}
+          className="cell"
+          passed={sec + sync - start >= parseInt(row?.timestamp)}
+          selected={row?._id === rowId}
+          onClick={() => onClickRow(row)}
+        >
+          {/* {row && row[column] && columnIndex === 0
+            ? dayjs(parseInt(row[column])).format("L LT")
+            : row[column].toString()} */}
+          {columnIndex !== 0
+            ? row && row[column] && row[column].toString()
+            : row && dayjs(parseInt(row[column])).format("MM/DD hh:mm:ss.SSS")}
+        </CustomRow>
+      );
+    }
+  };
+  const [passedIndex, setPassedIndex] = useState(0);
+  useEffect(() => {
+    const rowIndex = logState
+      ? logState.findIndex(
+          (item) => sec + sync - start <= parseInt(item?.timestamp)
+        )
+      : 0;
+    setPassedIndex(rowIndex + 5);
+  }, [logState, sec, start, sync]);
+
+  const onChangeColumns = (
+    e: React.MouseEvent<HTMLElement, MouseEvent>,
+    index: number
+  ) => {
+    e.stopPropagation();
+    setShowColumnIndex((prev) =>
+      prev.map((item, i) => {
+        return index === i ? !item : item;
+      })
+    );
+  };
+
+  const onClickFilter = useCallback(
+    (value: string, checked: boolean) => {
+      if (checked) {
+        setShowRowIndex((prev) =>
+          prev.map((item, i) => {
+            if (item === true) {
+              return logData[i][col] !== value;
+            } else {
+              return item;
+            }
+          })
+        );
+      } else {
+        setShowRowIndex((prev) =>
+          prev.map((item, i) => {
+            if (item === false) {
+              return logData[i][col] === value;
+            } else {
+              return item;
+            }
+          })
+        );
+      }
     },
-    [rows, prepareRow, selectedRowIndex, sec, sync, onClickRow]
+    [col, logData]
   );
 
-  const [selectedCol, setSelectedCol] = useState("");
-
-  const onClickCol = useCallback((col: string) => {
-    setSelectedCol(col);
-    console.log(col);
+  const onSelectAllColumns = useCallback((e: CheckboxChangeEvent) => {
+    if (!e.target.checked || e.target.indeterminate) {
+      setShowColumnIndex((prev) => prev.map(() => false));
+    } else {
+      setShowColumnIndex((prev) => prev.map(() => true));
+    }
   }, []);
 
-  return (
-    <Styles className="flex flex-col">
-      <div>
-        {sec + sync}, {sync}
-      </div>
-      <div
-        {...getTableProps()}
-        className="table sticky overflow-auto"
-        style={{ width: 500, height: 500 }}
-      >
-        <div className="header">
-          {headerGroups.map((headerGroup) => (
-            <div {...headerGroup.getHeaderGroupProps()} className="tr">
-              {headerGroup.headers.map((column) => (
-                <div
-                  {...column.getHeaderProps()}
-                  className={`th ${
-                    column.id === selectedCol ? "bg-blue-100" : "bg-white"
-                  }`}
-                  onClick={() => onClickCol(column.id)}
-                >
-                  {column.render("Header")}
-                  <div
-                    {...column.getResizerProps()}
-                    className={`resizer ${
-                      column.isResizing ? "isResizing" : ""
-                    }`}
-                  />
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
+  const onSelectAllValues = useCallback((e: CheckboxChangeEvent) => {
+    if (!e.target.checked || e.target.indeterminate) {
+      setShowRowIndex((prev) => prev.map(() => false));
+    } else {
+      setShowRowIndex((prev) => prev.map(() => true));
+    }
+  }, []);
 
-        <div {...getTableBodyProps()} className="body">
-          <List
-            height={500}
-            itemCount={rows.length}
-            itemSize={35}
-            width={totalColumnsWidth + scrollBarSize}
-            ref={listRef}
-          >
-            {RenderRow}
-          </List>
-        </div>
-      </div>
+  const [valueList, setValueList] = useState<ValueCount[] | undefined>([]);
+  const [columnList, setColumnList] = useState<string[]>([]);
+
+  useEffect(() => {
+    setValueList(count);
+    setColumnList(originalLogColumns);
+  }, [count, originalLogColumns]);
+
+  const onChangeSearchColumn: React.ChangeEventHandler<HTMLInputElement> =
+    useCallback(
+      (e) => {
+        setColumnList(
+          originalLogColumns.filter((item) =>
+            item.toLowerCase().includes(e.target.value.toLowerCase())
+          )
+        );
+      },
+      [originalLogColumns]
+    );
+
+  const onChangeSearchValue: React.ChangeEventHandler<HTMLInputElement> =
+    useCallback(
+      (e) => {
+        setValueList(
+          count?.filter((item) =>
+            item.value.toLowerCase().includes(e.target.value.toLowerCase())
+          )
+        );
+      },
+      [count]
+    );
+  const showColumnIndexExceptId = showColumnIndex.filter((_, i) => i !== 1);
+
+  return (
+    <div className="w-full h-screen">
+      {/* <div>
+        sec:{sec}, sync: {sync}, timestamp: {selectedTimestamp}, start: {start},
+        sec+sync: {sec + sync}
+      </div> */}
+      <Styles>
+        <AutoSizer>
+          {({ height, width }) => (
+            <MultiGrid
+              height={height}
+              rowHeight={30}
+              width={width}
+              fixedColumnCount={1}
+              fixedRowCount={1}
+              cellRenderer={CellRenderer}
+              style={{
+                border: "1px solid #ddd",
+              }}
+              styleTopLeftGrid={{
+                borderBottom: "2px solid #aaa",
+                borderRight: "2px solid #aaa",
+                fontWeight: "bold",
+              }}
+              rowCount={showRowIndex.filter(Boolean).length}
+              columnCount={showColumnIndex.filter(Boolean).length}
+              columnWidth={150}
+              scrollToRow={passedIndex}
+            />
+          )}
+        </AutoSizer>
+      </Styles>
       <div className="flex">
-        <div>
-          <div className="text-lg mb-2">Show Columns</div>
-          <div className="h-72 w-48 overflow-auto">
-            {allColumns.map((column) => (
-              <div key={column.id}>
-                <label>
-                  <input type="checkbox" {...column.getToggleHiddenProps()} />{" "}
-                  {column.id}
-                </label>
-              </div>
-            ))}
+        <div className="flex flex-col ml-4">
+          <div className="text-lg font-bold">Show Columns</div>
+          <Input size="small" onChange={onChangeSearchColumn} />
+          <Checkbox
+            checked={showColumnIndexExceptId.every((item) => item === true)}
+            indeterminate={
+              !showColumnIndexExceptId.every((item) => item === true) &&
+              showColumnIndexExceptId.some((item) => item === true)
+            }
+            onChange={onSelectAllColumns}
+            className="p-1"
+          >
+            Select All
+          </Checkbox>
+          <div className="h-60 overflow-auto">
+            {columnList.map((column, index) => {
+              return (
+                <div
+                  className={`flex p-1 ${
+                    column !== "timestamp" && "cursor-pointer hover:bg-gray-200"
+                  } ${column === col && "bg-blue-200"}`}
+                  onClick={(e) => onClickCol(e, column)}
+                >
+                  <Checkbox
+                    onClick={(e) => onChangeColumns(e, index)}
+                    checked={showColumnIndex[index]}
+                    key={index}
+                  />
+                  <div className="w-36 pl-2">{column}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
-        <div>
-          {headerGroups.map((headerGroup) => (
-            <div {...headerGroup.getHeaderGroupProps()}>
-              {headerGroup.headers
-                .filter((column) => column.id === selectedCol)
-                .map((column, index) => (
-                  <div key={index}>
-                    <div>
-                      {column.canFilter ? column.render("Filter") : null}
-                    </div>
-                  </div>
-                ))}
+        {col !== "" && (
+          <div className="flex flex-col ml-4">
+            <div className="text-lg font-bold">Column Filter - {col}</div>
+            <Input size="small" onChange={onChangeSearchValue} />
+            <div className="p-1">
+              <Checkbox
+                checked={count
+                  ?.map((item) => item.checked)
+                  .every((item) => item === true)}
+                indeterminate={
+                  !count
+                    ?.map((item) => item.checked)
+                    .every((item) => item === true) &&
+                  count
+                    ?.map((item) => item.checked)
+                    .some((item) => item === true)
+                }
+                onChange={onSelectAllValues}
+              >
+                Select All
+              </Checkbox>
             </div>
-          ))}
-        </div>
+            <div className="h-60 overflow-auto">
+              {valueList
+                ?.sort((a, b) => b.total - a.total)
+                .map((item) => {
+                  return (
+                    <div className="p-1">
+                      <Checkbox
+                        checked={item.checked}
+                        indeterminate={item.count !== 0 && !item.checked}
+                        onClick={() => onClickFilter(item.value, item.checked)}
+                        key={item.value}
+                      >
+                        {item.value} ({item.count}/{item.total})
+                      </Checkbox>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
       </div>
-      {/* <Button
-        onClick={() => {
-          listRef.current.scrollToItem(200);
-        }}
-      >
-        go to 200
-      </Button> */}
-    </Styles>
+    </div>
   );
 }
+
+const Styles = styled.div`
+  width: 100%;
+  height: 60%;
+  margin: 1rem;
+  .cell {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    :hover {
+      overflow: visible;
+      white-space: normal;
+    }
+  }
+`;
+
+const CustomRow = styled.div<{ passed: boolean; selected: boolean }>`
+  ${({ passed }) =>
+    passed &&
+    `
+    background: yellow;
+  `}
+  ${({ selected }) =>
+    selected &&
+    `
+    background: red;
+  `}
+`;
+
+const CustomCol = styled.div``;
 
 export default LogTable;
