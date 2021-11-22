@@ -1,4 +1,5 @@
 import { Tree } from "antd";
+import { Key } from "antd/lib/table/interface";
 import { DataNode } from "antd/lib/tree";
 import _ from "lodash";
 import React, { ReactElement, useCallback } from "react";
@@ -8,12 +9,20 @@ interface Props {
   setShowColumnIndex: React.Dispatch<React.SetStateAction<boolean[]>>;
   setShowRowIndex: React.Dispatch<React.SetStateAction<boolean[]>>;
   setCol: React.Dispatch<React.SetStateAction<string>>;
+  setDatumTypes: React.Dispatch<React.SetStateAction<string[]>>;
   logData: {
     [index: string]: string;
   }[];
 }
 
-const datumTypes = ["app", "key", "noti", "msg", "call", "media"];
+const datumTypes = [
+  "APP_USAGE_EVENT",
+  "KEY_LOG",
+  "NOTIFICATION",
+  "MESSAGE",
+  "CALL_LOG",
+  "MEDIA",
+];
 
 const columnData: DataNode[] = [
   {
@@ -74,29 +83,40 @@ function ShowColumns({
   setShowColumnIndex,
   setShowRowIndex,
   setCol,
+  setDatumTypes,
   logData,
 }: Props): ReactElement {
   const onCheckColumn = useCallback(
-    (checked: any) => {
-      const columns = [
+    (checked, item) => {
+      const allChecked: string[] = [...checked, ...item.halfCheckedKeys];
+      const columns: string[] = [
         "timestamp",
         "_id",
         "datumType",
-        ..._.uniq(
-          checked
+        ..._.uniq<string>(
+          allChecked
             .filter((col: string) => col.includes("-"))
             .map((col: string) => col.split("-")[1])
         ),
       ];
-      setShowRowIndex(logData.map((row) => checked.includes(row.datumType)));
+      setShowRowIndex(logData.map((row) => allChecked.includes(row.datumType)));
       setShowColumnIndex(
         originalLogColumns.map((col) => columns.includes(col))
       );
+      setDatumTypes(
+        allChecked.filter((col: string) => datumTypes.includes(col))
+      );
     },
-    [logData, originalLogColumns, setShowColumnIndex, setShowRowIndex]
+    [
+      logData,
+      originalLogColumns,
+      setDatumTypes,
+      setShowColumnIndex,
+      setShowRowIndex,
+    ]
   );
   const onSelectColumn = useCallback(
-    (selected: any) => {
+    (selected) => {
       setCol(selected[0].split("-")[1]);
     },
     [setCol]

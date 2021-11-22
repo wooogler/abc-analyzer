@@ -51,7 +51,7 @@ function LogTable({
     const initShowColumnIndex = new Array(originalLogColumns.length).fill(true);
     // .map((_, index) => (index === 1 ? false : true));
     setShowColumnIndex(initShowColumnIndex);
-    setShowRowIndex(new Array(logData.length).fill(true));
+    setShowRowIndex(new Array(logData.length).fill(false));
   }, [logData.length, originalLogColumns.length]);
   useEffect(() => {
     const showColumns = originalLogColumns.filter((_, i) => showColumnIndex[i]);
@@ -76,16 +76,19 @@ function LogTable({
   );
 
   const [col, setCol] = useState("");
+  const [datumTypes, setDatumTypes] = useState<string[]>([]);
   const [count, setCount] = useState<ValueCount[] | undefined>([]);
 
   useEffect(() => {
+    console.log(datumTypes);
+    const logs = logData.filter((log) => datumTypes.includes(log.datumType));
     const originalCountCol = originalLogColumns.map((col) => ({
       col,
-      count: Object.entries(_.countBy(logData?.map((item) => item[col]))),
+      count: Object.entries(_.countBy(logs?.map((item) => item[col]))),
     }));
     const countCol = originalLogColumns.map((col) => ({
       col,
-      count: Object.entries(_.countBy(logState?.map((item) => item[col]))),
+      count: Object.entries(_.countBy(logs?.map((item) => item[col]))),
     }));
     const selectedCount = countCol.find((item) => item.col === col)?.count;
     const originalSelectedCount = originalCountCol.find(
@@ -119,17 +122,7 @@ function LogTable({
         }
       })
     );
-  }, [col, logData, logState, originalLogColumns]);
-
-  const onClickCol = useCallback(
-    (e: React.MouseEvent<HTMLDivElement, MouseEvent>, col: string) => {
-      if (col === "timestamp" || col === "_id" || col === "extra_eventTime")
-        return;
-      // e.stopPropagation();
-      setCol(col);
-    },
-    []
-  );
+  }, [col, datumTypes, logData, logState, originalLogColumns]);
 
   const CellRenderer: GridCellRenderer = ({
     columnIndex,
@@ -219,14 +212,6 @@ function LogTable({
     [col, logData]
   );
 
-  const onSelectAllColumns = useCallback((e: CheckboxChangeEvent) => {
-    if (!e.target.checked || e.target.indeterminate) {
-      setShowColumnIndex((prev) => prev.map(() => false));
-    } else {
-      setShowColumnIndex((prev) => prev.map(() => true));
-    }
-  }, []);
-
   const onSelectAllValues = useCallback((e: CheckboxChangeEvent) => {
     if (!e.target.checked || e.target.indeterminate) {
       setShowRowIndex((prev) => prev.map(() => false));
@@ -236,24 +221,10 @@ function LogTable({
   }, []);
 
   const [valueList, setValueList] = useState<ValueCount[] | undefined>([]);
-  const [columnList, setColumnList] = useState<string[]>([]);
 
   useEffect(() => {
     setValueList(count);
-    setColumnList(originalLogColumns);
   }, [count, originalLogColumns]);
-
-  const onChangeSearchColumn: React.ChangeEventHandler<HTMLInputElement> =
-    useCallback(
-      (e) => {
-        setColumnList(
-          originalLogColumns.filter((item) =>
-            item.toLowerCase().includes(e.target.value.toLowerCase())
-          )
-        );
-      },
-      [originalLogColumns]
-    );
 
   const onChangeSearchValue: React.ChangeEventHandler<HTMLInputElement> =
     useCallback(
@@ -266,7 +237,6 @@ function LogTable({
       },
       [count]
     );
-  const showColumnIndexExceptId = showColumnIndex.filter((_, i) => i !== 1);
 
   return (
     <div className="w-full h-screen">
@@ -303,48 +273,16 @@ function LogTable({
       <div className="flex">
         <div className="flex flex-col ml-4">
           <div className="text-lg font-bold">Show Columns</div>
-          <Input size="small" onChange={onChangeSearchColumn} />
-          <Checkbox
-            checked={showColumnIndexExceptId.every((item) => item === true)}
-            indeterminate={
-              !showColumnIndexExceptId.every((item) => item === true) &&
-              showColumnIndexExceptId.some((item) => item === true)
-            }
-            onChange={onSelectAllColumns}
-            className="p-1"
-          >
-            Select All
-          </Checkbox>
-          <div className="h-60 overflow-auto">
-            {columnList.map((column, index) => {
-              return (
-                <div
-                  className={`flex p-1 ${
-                    column !== "timestamp" && "cursor-pointer hover:bg-gray-200"
-                  } ${column === col && "bg-blue-200"}`}
-                  onClick={(e) => onClickCol(e, column)}
-                >
-                  <Checkbox
-                    onClick={(e) => onChangeColumns(e, index)}
-                    checked={showColumnIndex[index]}
-                    key={index}
-                  />
-                  <div className="w-36 pl-2">{column}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <div>
           <ShowColumns
             originalLogColumns={originalLogColumns}
             setShowColumnIndex={setShowColumnIndex}
             setCol={setCol}
             logData={logData}
+            setDatumTypes={setDatumTypes}
             setShowRowIndex={setShowRowIndex}
           />
         </div>
-        {col !== "" && (
+        {(col !== "" || valueList?.length === 0) && (
           <div className="flex flex-col ml-4">
             <div className="text-lg font-bold">Column Filter - {col}</div>
             <Input size="small" onChange={onChangeSearchValue} />
