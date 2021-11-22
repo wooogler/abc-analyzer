@@ -28,7 +28,9 @@ function App() {
       </div>
       <div className="w-1/3 h-screen">
         <LogPlayer
-          url="videos/P020_10.webm"
+          url={`${
+            process.env.NODE_ENV === "development" && "abc-analyzer/"
+          }videos/P020_10.webm`}
           setSec={setSec}
           setSync={setSync}
           setStart={setStart}
