@@ -35,7 +35,7 @@ function App() {
         </div>
         <LogPlayer
           url={`${
-            process.env.NODE_ENV === "development" && "abc-analyzer/"
+            process.env.NODE_ENV === "development" ? "abc-analyzer/" : ""
           }videos/P020_10.webm`}
           setSec={setSec}
           setSync={setSync}

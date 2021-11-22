@@ -83,7 +83,6 @@ function LogTable({
   const [count, setCount] = useState<ValueCount[] | undefined>([]);
 
   useEffect(() => {
-    console.log(datumTypes);
     const logs = logData.filter((log) => datumTypes.includes(log.datumType));
     const originalCountCol = originalLogColumns.map((col) => ({
       col,
@@ -91,7 +90,7 @@ function LogTable({
     }));
     const countCol = originalLogColumns.map((col) => ({
       col,
-      count: Object.entries(_.countBy(logs?.map((item) => item[col]))),
+      count: Object.entries(_.countBy(logState?.map((item) => item[col]))),
     }));
     const selectedCount = countCol.find((item) => item.col === col)?.count;
     const originalSelectedCount = originalCountCol.find(
@@ -181,7 +180,7 @@ function LogTable({
       if (checked) {
         setShowRowIndex((prev) =>
           prev.map((item, i) => {
-            if (item === true) {
+            if (item === true && datumTypes.includes(logData[i].datumType)) {
               return logData[i][col] !== value;
             } else {
               return item;
@@ -191,7 +190,7 @@ function LogTable({
       } else {
         setShowRowIndex((prev) =>
           prev.map((item, i) => {
-            if (item === false) {
+            if (item === false && datumTypes.includes(logData[i].datumType)) {
               return logData[i][col] === value;
             } else {
               return item;
@@ -257,7 +256,6 @@ function LogTable({
               columnCount={showColumnIndex.filter(Boolean).length}
               columnWidth={200}
               scrollToRow={passedIndex}
-              enableFixedColumnScroll
             />
           )}
         </AutoSizer>
@@ -299,14 +297,13 @@ function LogTable({
             <div className="h-60 overflow-auto">
               {valueList
                 ?.sort((a, b) => b.total - a.total)
-                .map((item) => {
+                .map((item, index) => {
                   return (
-                    <div className="p-1">
+                    <div className="p-1" key={index}>
                       <Checkbox
                         checked={item.checked}
                         indeterminate={item.count !== 0 && !item.checked}
                         onClick={() => onClickFilter(item.value, item.checked)}
-                        key={item.value}
                       >
                         {item.value} ({item.count}/{item.total})
                       </Checkbox>
