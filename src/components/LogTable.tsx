@@ -7,6 +7,7 @@ import styled from "styled-components";
 import _ from "lodash";
 import { Checkbox, Input } from "antd";
 import { CheckboxChangeEvent } from "antd/lib/checkbox";
+import ShowColumns from "./ShowColumns";
 
 interface Props {
   fileName: string;
@@ -49,7 +50,6 @@ function LogTable({
   useEffect(() => {
     const initShowColumnIndex = new Array(originalLogColumns.length).fill(true);
     // .map((_, index) => (index === 1 ? false : true));
-    console.log(initShowColumnIndex);
     setShowColumnIndex(initShowColumnIndex);
     setShowRowIndex(new Array(logData.length).fill(true));
   }, [logData.length, originalLogColumns.length]);
@@ -334,6 +334,15 @@ function LogTable({
               );
             })}
           </div>
+        </div>
+        <div>
+          <ShowColumns
+            originalLogColumns={originalLogColumns}
+            setShowColumnIndex={setShowColumnIndex}
+            setCol={setCol}
+            logData={logData}
+            setShowRowIndex={setShowRowIndex}
+          />
         </div>
         {col !== "" && (
           <div className="flex flex-col ml-4">

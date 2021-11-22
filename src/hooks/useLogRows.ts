@@ -16,7 +16,7 @@ function flattenObject(ob: any) {
         toReturn[i + "_" + x] = flatObject[x];
       }
     } else {
-      toReturn[i] = ob[i];
+      toReturn[i] = String(ob[i]);
     }
   }
   return toReturn;
@@ -51,18 +51,34 @@ function useLogRows(fileName: string) {
       readRemoteFile<string[]>(
         `${
           process.env.NODE_ENV === "development"
-            ? "http://localhost:3000"
+            ? "http://localhost:3000/abc-analyzer"
             : "https://wooogler.github.io/abc-analyzer"
         }/logs/${fileName}`,
         {
           worker: true,
           complete: function (results) {
+            const logColumns = [
+              "timestamp",
+              "datumType",
+              "type",
+              "name",
+              "packageName",
+              "currentKey",
+              "timeTaken",
+              "isPosted",
+              "messageBox",
+              "presentation",
+              "_id",
+            ];
             const logRaws = results.data;
-            const logRows = getlogRows(logRaws);
-            const logColumns = logRows.reduce<string[]>((acc, row) => {
-              const keys = Object.keys(row);
-              return _.union(acc, keys);
-            }, []);
+            const logRows = getlogRows(logRaws).map((item) =>
+              _.pick(item, logColumns)
+            );
+            // const logColumns = logRows.reduce<string[]>((acc, row) => {
+            //   const keys = Object.keys(row);
+            //   return _.union(acc, keys);
+            // }, []);
+
             const res = logColumns.reduce(
               (ac, a) => ({ ...ac, [a]: "empty" }),
               {}
