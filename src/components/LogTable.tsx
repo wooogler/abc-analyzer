@@ -5,9 +5,10 @@ import localizedFormat from "dayjs/plugin/localizedFormat";
 import useLogRows from "../hooks/useLogRows";
 import styled from "styled-components";
 import _ from "lodash";
-import { Checkbox, Input } from "antd";
+import { Checkbox, Input, Tooltip } from "antd";
 import { CheckboxChangeEvent } from "antd/lib/checkbox";
 import ShowColumns from "./ShowColumns";
+import TaskSheet from "./TaskSheet";
 
 interface Props {
   fileName: string;
@@ -17,7 +18,7 @@ interface Props {
   selectedTimestamp: number;
   setSync: React.Dispatch<React.SetStateAction<number>>;
   setSelectedTimestamp: React.Dispatch<React.SetStateAction<number>>;
-  playerRef: any;
+  playerRef: any | undefined;
 }
 
 interface ValueCount {
@@ -70,7 +71,9 @@ function LogTable({
       setRowId(row?._id);
       const timestamp = parseInt(row?.timestamp);
       setSelectedTimestamp(timestamp);
-      playerRef.current.seekTo((start + timestamp - sync) / 1000, "seconds");
+      if (playerRef) {
+        playerRef.current.seekTo((start + timestamp - sync) / 1000, "seconds");
+      }
     },
     [playerRef, setSelectedTimestamp, start, sync]
   );
@@ -144,6 +147,11 @@ function LogTable({
         );
       }
 
+      const value =
+        columnIndex !== 0
+          ? row && row[column] && row[column].toString()
+          : row && dayjs(parseInt(row[column])).format("MM/DD hh:mm:ss.SSS");
+
       return (
         <CustomRow
           key={key}
@@ -153,12 +161,7 @@ function LogTable({
           selected={row?._id === rowId}
           onClick={() => onClickRow(row)}
         >
-          {/* {row && row[column] && columnIndex === 0
-            ? dayjs(parseInt(row[column])).format("L LT")
-            : row[column].toString()} */}
-          {columnIndex !== 0
-            ? row && row[column] && row[column].toString()
-            : row && dayjs(parseInt(row[column])).format("MM/DD hh:mm:ss.SSS")}
+          <Tooltip title={value}>{value}</Tooltip>
         </CustomRow>
       );
     }
@@ -172,18 +175,6 @@ function LogTable({
       : 0;
     setPassedIndex(rowIndex + 5);
   }, [logState, sec, start, sync]);
-
-  const onChangeColumns = (
-    e: React.MouseEvent<HTMLElement, MouseEvent>,
-    index: number
-  ) => {
-    e.stopPropagation();
-    setShowColumnIndex((prev) =>
-      prev.map((item, i) => {
-        return index === i ? !item : item;
-      })
-    );
-  };
 
   const onClickFilter = useCallback(
     (value: string, checked: boolean) => {
@@ -264,8 +255,9 @@ function LogTable({
               }}
               rowCount={showRowIndex.filter(Boolean).length}
               columnCount={showColumnIndex.filter(Boolean).length}
-              columnWidth={150}
+              columnWidth={200}
               scrollToRow={passedIndex}
+              enableFixedColumnScroll
             />
           )}
         </AutoSizer>
@@ -324,6 +316,9 @@ function LogTable({
             </div>
           </div>
         )}
+        <div className="ml-auto">
+          <TaskSheet timestamp={selectedTimestamp.toString()} />
+        </div>
       </div>
     </div>
   );
@@ -337,10 +332,6 @@ const Styles = styled.div`
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    :hover {
-      overflow: visible;
-      white-space: normal;
-    }
   }
 `;
 

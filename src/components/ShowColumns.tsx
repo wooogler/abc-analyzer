@@ -122,13 +122,15 @@ function ShowColumns({
     [setCol]
   );
   return (
-    <Tree
-      checkable
-      treeData={columnData}
-      onCheck={onCheckColumn}
-      onSelect={onSelectColumn}
-      defaultExpandedKeys={["all"]}
-    />
+    <div className="h-60 overflow-auto">
+      <Tree
+        checkable
+        treeData={columnData}
+        onCheck={onCheckColumn}
+        onSelect={onSelectColumn}
+        defaultExpandedKeys={["all"]}
+      />
+    </div>
   );
 }
 
