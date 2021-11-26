@@ -1,5 +1,4 @@
-import { Button } from "antd";
-import React, { ReactElement, useCallback, useState } from "react";
+import React, { ReactElement } from "react";
 import ReactPlayer from "react-player";
 
 interface Props {
@@ -9,6 +8,8 @@ interface Props {
   setStart: React.Dispatch<React.SetStateAction<number>>;
   selectedTimestamp: number;
   playerRef: React.LegacyRef<ReactPlayer> | undefined;
+  setPlayedSec: React.Dispatch<React.SetStateAction<number>>;
+  playedSec: number;
 }
 
 interface Progress {
@@ -21,22 +22,16 @@ interface Progress {
 function LogPlayer({
   url,
   setSec,
-  setSync,
-  setStart,
-  selectedTimestamp,
+  setPlayedSec,
   playerRef,
 }: Props): ReactElement {
-  const [playedSec, setPlayedSec] = useState(0);
   const onProgress = (e: Progress) => {
     setSec(Math.floor(e.playedSeconds * 1000));
     setPlayedSec(Math.floor(e.playedSeconds * 1000));
   };
-  const onClickSync = useCallback(() => {
-    setSync(selectedTimestamp);
-    setStart(playedSec);
-  }, [playedSec, selectedTimestamp, setStart, setSync]);
+
   return (
-    <div className="h-screen w-full p-4">
+    <div className="flex flex-col h-full w-full pl-4 pt-2 pb-8 justify-center items-center">
       <ReactPlayer
         url={url}
         controls={true}
@@ -46,8 +41,6 @@ function LogPlayer({
         progressInterval={10}
         ref={playerRef}
       />
-      {/* <div>{playedSec}</div> */}
-      {/* <Button onClick={onClickSync}>Sync</Button> */}
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import { Tree } from "antd";
-import { Key } from "antd/lib/table/interface";
 import { DataNode } from "antd/lib/tree";
 import _ from "lodash";
 import React, { ReactElement, useCallback } from "react";
@@ -15,7 +14,7 @@ interface Props {
   }[];
 }
 
-const datumTypes = [
+export const defaultDatumTypes = [
   "APP_USAGE_EVENT",
   "KEY_LOG",
   "NOTIFICATION",
@@ -104,7 +103,7 @@ function ShowColumns({
         originalLogColumns.map((col) => columns.includes(col))
       );
       setDatumTypes(
-        allChecked.filter((col: string) => datumTypes.includes(col))
+        allChecked.filter((col: string) => defaultDatumTypes.includes(col))
       );
     },
     [
@@ -117,7 +116,11 @@ function ShowColumns({
   );
   const onSelectColumn = useCallback(
     (selected) => {
-      setCol(selected[0].split("-")[1]);
+      if (selected.length === 0) {
+        setCol("");
+      } else {
+        setCol(selected[0].split("-")[1]);
+      }
     },
     [setCol]
   );
@@ -128,7 +131,7 @@ function ShowColumns({
         treeData={columnData}
         onCheck={onCheckColumn}
         onSelect={onSelectColumn}
-        defaultExpandedKeys={["all"]}
+        defaultCheckedKeys={defaultDatumTypes}
       />
     </div>
   );

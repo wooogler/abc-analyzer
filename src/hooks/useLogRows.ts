@@ -31,7 +31,6 @@ const getlogRows = (logRaws: string[][]) =>
     try {
       return { timestamp, _id, datumType, ...flattenObject(JSON.parse(value)) };
     } catch (e) {
-      console.log(e);
       return { timestamp, _id, datumType };
     }
   });
@@ -79,10 +78,7 @@ function useLogRows(fileName: string) {
             //   return _.union(acc, keys);
             // }, []);
 
-            const res = logColumns.reduce(
-              (ac, a) => ({ ...ac, [a]: "empty" }),
-              {}
-            );
+            const res = logColumns.reduce((ac, a) => ({ ...ac, [a]: "" }), {});
             const logs = logRows.map((item) => Object.assign({}, res, item));
             setLogData(logs);
           },

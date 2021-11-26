@@ -1,5 +1,10 @@
 import React, { ReactElement, useCallback, useEffect, useState } from "react";
-import { AutoSizer, GridCellRenderer, MultiGrid } from "react-virtualized";
+import {
+  AutoSizer,
+  GridCellRenderer,
+  Index,
+  MultiGrid,
+} from "react-virtualized";
 import dayjs from "dayjs";
 import localizedFormat from "dayjs/plugin/localizedFormat";
 import useLogRows from "../hooks/useLogRows";
@@ -7,7 +12,7 @@ import styled from "styled-components";
 import _ from "lodash";
 import { Checkbox, Input, Tooltip } from "antd";
 import { CheckboxChangeEvent } from "antd/lib/checkbox";
-import ShowColumns from "./ShowColumns";
+import ShowColumns, { defaultDatumTypes } from "./ShowColumns";
 import TaskSheet from "./TaskSheet";
 
 interface Props {
@@ -40,6 +45,7 @@ function LogTable({
   selectedTimestamp,
   playerRef,
 }: Props): ReactElement {
+  const [selectedDatumType, setSelectedDatumType] = useState<string>("");
   const { logData, logColumns: originalLogColumns } = useLogRows(fileName);
   const [logState, setLogState] = useState<
     {
@@ -52,8 +58,10 @@ function LogTable({
     const initShowColumnIndex = new Array(originalLogColumns.length).fill(true);
     // .map((_, index) => (index === 1 ? false : true));
     setShowColumnIndex(initShowColumnIndex);
-    setShowRowIndex(new Array(logData.length).fill(false));
-  }, [logData.length, originalLogColumns.length]);
+    setShowRowIndex(
+      logData.map((item) => defaultDatumTypes.includes(item.datumType))
+    );
+  }, [logData, originalLogColumns.length]);
   useEffect(() => {
     const showColumns = originalLogColumns.filter((_, i) => showColumnIndex[i]);
     setLogState(
@@ -70,7 +78,8 @@ function LogTable({
     (row: { [index: string]: string }) => {
       setRowId(row?._id);
       const timestamp = parseInt(row?.timestamp);
-      setSelectedTimestamp(timestamp);
+      setSelectedTimestamp(parseInt(row?.timestamp));
+      setSelectedDatumType(row?.datumType);
       if (playerRef) {
         playerRef.current.seekTo((start + timestamp - sync) / 1000, "seconds");
       }
@@ -79,7 +88,7 @@ function LogTable({
   );
 
   const [col, setCol] = useState("");
-  const [datumTypes, setDatumTypes] = useState<string[]>([]);
+  const [datumTypes, setDatumTypes] = useState<string[]>(defaultDatumTypes);
   const [count, setCount] = useState<ValueCount[] | undefined>([]);
 
   useEffect(() => {
@@ -141,7 +150,7 @@ function LogTable({
       if (rowIndex === 0) {
         return (
           <CustomCol key={key} style={style} className="cell">
-            {column}
+            {columnIndex === 0 ? 'Datetime':column}
           </CustomCol>
         );
       }
@@ -199,16 +208,26 @@ function LogTable({
         );
       }
     },
-    [col, logData]
+    [col, datumTypes, logData]
   );
 
-  const onSelectAllValues = useCallback((e: CheckboxChangeEvent) => {
-    if (!e.target.checked || e.target.indeterminate) {
-      setShowRowIndex((prev) => prev.map(() => false));
-    } else {
-      setShowRowIndex((prev) => prev.map(() => true));
-    }
-  }, []);
+  const onSelectAllValues = useCallback(
+    (e: CheckboxChangeEvent) => {
+      if (!e.target.checked || e.target.indeterminate) {
+        setShowRowIndex((prev) => prev.map(() => false));
+      } else {
+        setShowRowIndex((prev) =>
+          prev.map((item, i) => {
+            if (datumTypes.includes(logData[i].datumType)) {
+              return true;
+            }
+            return item;
+          })
+        );
+      }
+    },
+    [datumTypes, logData]
+  );
 
   const [valueList, setValueList] = useState<ValueCount[] | undefined>([]);
 
@@ -228,6 +247,35 @@ function LogTable({
       [count]
     );
 
+  const colToIndex = useCallback(
+    (col: string) => {
+      const colIndex = originalLogColumns
+        .map((item, i) => ({ name: item, index: i }))
+        .filter((item) => showColumnIndex[item.index]);
+      return colIndex?.find((item) => item.name === col)?.index;
+    },
+    [originalLogColumns, showColumnIndex]
+  );
+  const getColumnWidth: (params: Index) => number = useCallback(
+    ({ index }) => {
+      if (index === 0) {
+        return 150;
+      } else if (index === colToIndex("datumType")) {
+        return 150;
+      } else if (index === colToIndex("type")) {
+        return 250;
+      } else if (index === colToIndex("name")) {
+        return 100;
+      } else if (index === colToIndex("packageName")) {
+        return 300;
+      } else if (index === colToIndex("_id")) {
+        return 0;
+      }
+      return 70;
+    },
+    [colToIndex]
+  );
+
   return (
     <div className="w-full h-screen">
       {/* <div>
@@ -244,17 +292,15 @@ function LogTable({
               fixedColumnCount={1}
               fixedRowCount={1}
               cellRenderer={CellRenderer}
-              style={{
-                border: "1px solid #ddd",
-              }}
               styleTopLeftGrid={{
-                borderBottom: "2px solid #aaa",
-                borderRight: "2px solid #aaa",
-                fontWeight: "bold",
+                borderRight: "1px solid rgba(0, 0, 0, 0.5)",
+              }}
+              styleBottomLeftGrid={{
+                borderRight: "1px solid rgba(0, 0, 0, 0.5)",
               }}
               rowCount={showRowIndex.filter(Boolean).length}
               columnCount={showColumnIndex.filter(Boolean).length}
-              columnWidth={200}
+              columnWidth={getColumnWidth}
               scrollToRow={passedIndex}
             />
           )}
@@ -314,7 +360,10 @@ function LogTable({
           </div>
         )}
         <div className="ml-auto">
-          <TaskSheet timestamp={selectedTimestamp.toString()} />
+          <TaskSheet
+            timestamp={selectedTimestamp.toString()}
+            datumType={selectedDatumType}
+          />
         </div>
       </div>
     </div>
@@ -325,6 +374,7 @@ const Styles = styled.div`
   width: 100%;
   height: 60%;
   margin: 1rem;
+
   .cell {
     white-space: nowrap;
     overflow: hidden;
@@ -333,18 +383,29 @@ const Styles = styled.div`
 `;
 
 const CustomRow = styled.div<{ passed: boolean; selected: boolean }>`
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  padding-left: 0.25rem;
+  line-height: 30px;
   ${({ passed }) =>
     passed &&
     `
-    background: yellow;
+    background-color: #E6F7FF;
   `}
   ${({ selected }) =>
     selected &&
     `
-    background: red;
+    background-color: #1890FF;
+    color: white;
   `}
 `;
 
-const CustomCol = styled.div``;
+const CustomCol = styled.div`
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  padding-left: 0.25rem;
+  background-color: #fafafa;
+  line-height: 30px;
+`;
 
 export default LogTable;
