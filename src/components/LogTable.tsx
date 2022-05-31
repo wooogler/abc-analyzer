@@ -278,10 +278,10 @@ function LogTable({
 
   return (
     <div className="w-full h-screen">
-      {/* <div>
+      <div>
         sec:{sec}, sync: {sync}, timestamp: {selectedTimestamp}, start: {start},
         sec+sync: {sec + sync}
-      </div> */}
+      </div>
       <Styles>
         <AutoSizer>
           {({ height, width }) => (

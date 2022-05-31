@@ -6,6 +6,9 @@ import LogPlayer from "./components/LogPlayer";
 import ReactPlayer from "react-player";
 import { Button, Radio, Switch } from "antd";
 
+const videoName = 'P020_10.webm';
+const logName = "20.4.csv";
+
 function App() {
   const [linked, setLinked] = useState<boolean>(true);
   const [sync, setSync] = useState<number>(1629813828796);
@@ -24,7 +27,7 @@ function App() {
     <div className="flex h-screen overflow-hidden">
       <div className="w-3/4 h-screen">
         <LogTable
-          fileName="20.4.csv"
+          fileName={logName}
           sec={linked ? sec : 0}
           sync={sync}
           setSelectedTimestamp={setSelectedTimestamp}
@@ -44,15 +47,15 @@ function App() {
             <Radio.Button value="main">Main Task</Radio.Button>
           </Radio.Group>
           <div className="mx-2"></div>
-          <Button onClick={onClickSync} size="small" disabled>
+          <Button onClick={onClickSync} size="small">
             Sync
           </Button>
-          {/* <div className="ml-2">{playedSec}</div> */}
+          <div className="ml-2">{playedSec}</div>
         </div>
         <LogPlayer
           url={`${
             process.env.NODE_ENV === "development" ? "abc-analyzer/" : ""
-          }videos/P020_10.webm`}
+          }videos/${videoName}`}
           setSec={setSec}
           setSync={setSync}
           setStart={setStart}
